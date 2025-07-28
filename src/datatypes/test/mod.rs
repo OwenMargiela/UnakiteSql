@@ -3,7 +3,8 @@ pub mod test {
     use arrow::datatypes::DataType;
 
     use crate::datatypes::{
-        arrow_vector_builder::ArrowVectorBuilder, column_vector::ColumnVector, value::ArrowValue,
+        arrow_vector_builder::ArrowVectorBuilder, column_vector::ColumnVectorTrait,
+        value::ArrowValue,
     };
 
     #[test]
@@ -19,7 +20,7 @@ pub mod test {
 
         assert_eq!(size, v_size);
 
-        for i  in 0..v_size {
+        for i in 0..v_size {
             let v_value = v.get_value(i).unwrap();
 
             if let ArrowValue::Int64Type(int_value) = v_value {

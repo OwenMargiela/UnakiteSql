@@ -131,7 +131,7 @@ macro_rules! dispatch_builder_array_ref {
 
 #[macro_export]
 macro_rules! append_dispatch {
-    ($builder:expr, $value:expr, $( ($builder_variant:ident, $value_variant:ident) ),* $(,)?) => {
+    ($builder:expr, $value:expr, $( ($builder_variant:ident, $value_variant:ident) ),* $(,)? ) => {
         match ($builder, $value) {
             $(
                 (VectorBuilder::$builder_variant(b), Some(ArrowValue::$value_variant(v))) => b.append_value(v),

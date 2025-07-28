@@ -38,7 +38,7 @@ struct Stager {
 }
 
 impl Stager {
-    pub fn new(data_type: DataType) -> Self {
+    pub fn new() -> Self {
         Self {
             buffer: vec![None; 10],
         }
@@ -61,7 +61,7 @@ pub struct ArrowVectorBuilder {
 impl ArrowVectorBuilder {
     pub fn new(datatype: DataType) -> Self {
         let builder = match_and!(init_builder, datatype);
-        let stager = Stager::new(datatype);
+        let stager = Stager::new();
 
         Self { builder, stager }
     }
@@ -96,7 +96,7 @@ impl ArrowVectorBuilder {
         );
     }
 
-    pub fn build(mut self) -> impl ColumnVector {
+    pub fn build(mut self) -> ColumnVector {
         for arrow_value in self.stager.buffer.clone().into_iter() {
             self.append(arrow_value);
         }
@@ -117,6 +117,6 @@ impl ArrowVectorBuilder {
             String,
         );
 
-        ArrowFieldVector { field: array_ref }
+        ColumnVector::ArrowVector(ArrowFieldVector { field: array_ref })
     }
 }

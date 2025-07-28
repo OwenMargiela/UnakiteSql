@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use anyhow::Error;
 use arrow::datatypes::{DataType, Field as ArrowField, Schema as ArrowSchema};
 
-pub fn schema_from_arrow_schema(arrow_schema: ArrowSchema) -> Schema {
+pub fn schema_from_arrow_schema(arrow_schema: Arc<ArrowSchema>) -> Schema {
     let fields: Vec<Field> = arrow_schema
         .fields
         .iter()
@@ -14,8 +16,9 @@ pub fn schema_from_arrow_schema(arrow_schema: ArrowSchema) -> Schema {
     Schema { fields }
 }
 
+#[derive(Clone, Debug)]
 pub struct Schema {
-    fields: Vec<Field>,
+    pub fields: Vec<Field>,
 }
 
 impl Schema {
@@ -35,15 +38,15 @@ impl Schema {
         }
     }
 
-    pub fn select(&self, names: Vec<String>) -> anyhow::Result<Schema> {
+    pub fn select(&self, names: Arc<Vec<String>>) -> anyhow::Result<Schema> {
         let mut f: Vec<Field> = Vec::new();
 
-        for name in names {
+        for name in names.iter() {
             let m: Vec<Field> = self
                 .fields
                 .iter()
                 .cloned()
-                .filter(|it| it.name == name)
+                .filter(|it| it.name == *name)
                 .collect();
             if m.len() == 1 {
                 f.push(m[0].clone());
@@ -56,10 +59,10 @@ impl Schema {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Field {
-    name: String,
-    data_type: DataType,
+    pub name: String,
+    pub data_type: DataType,
 }
 
 impl Field {

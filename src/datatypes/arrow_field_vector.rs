@@ -1,39 +1,24 @@
-use crate::{
-    build_array,
-    datatypes::{column_vector::ColumnVector, value::ArrowValue},
-    downcast_arry, match_and,
-};
-use anyhow::{ Ok};
+use crate::{datatypes::value::ArrowValue, downcast_arry, match_and};
+
 use arrow::{
     array::{
-        Array, ArrayRef, BooleanArray, BooleanBuilder, Float32Array, Float32Builder, Float64Array,
-        Float64Builder, Int8Array, Int8Builder, Int16Array, Int16Builder, Int32Array, Int32Builder,
-        Int64Array, Int64Builder, StringArray, StringBuilder, UInt8Array, UInt8Builder,
-        UInt16Array, UInt16Builder, UInt32Array, UInt32Builder, UInt64Array, UInt64Builder,
+        Array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int8Array, Int16Array,
+        Int32Array, Int64Array, StringArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
     },
     datatypes::DataType,
 };
 
-/*Experiment with more macros */
-struct FieldVectorFactory;
-impl FieldVectorFactory {
-    pub fn create(arrow_type: DataType, initital_capacity: usize) -> anyhow::Result<ArrayRef> {
-        let field_vector = match_and!(arrow_type, build_array, initital_capacity);
-
-        Ok(field_vector)
-    }
-}
-
 /** Wrapper around Arrow ArrayRef */
+#[derive(Clone, Debug)]
 pub struct ArrowFieldVector {
     pub field: ArrayRef,
 }
-impl ColumnVector for ArrowFieldVector {
-    fn get_type(&self) -> DataType {
+impl ArrowFieldVector {
+    pub fn get_type(&self) -> DataType {
         return self.field.data_type().clone();
     }
 
-    fn get_value(&self, i: usize) -> Option<ArrowValue> {
+    pub fn get_value(&self, i: usize) -> Option<ArrowValue> {
         if self.field.is_null(i) {
             panic!("Null Field");
         }
@@ -44,7 +29,7 @@ impl ColumnVector for ArrowFieldVector {
         Some(value)
     }
 
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.field.len()
     }
 }

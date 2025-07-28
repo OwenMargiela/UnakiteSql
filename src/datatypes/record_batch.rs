@@ -1,8 +1,13 @@
-use crate::datatypes::{column_vector::ColumnVector, schema::Schema};
+use crate::datatypes::{
+    column_vector::{ColumnVector, ColumnVectorTrait},
+    schema::Schema,
+};
 
-struct RecordBatch {
-    schema: Schema,
-    fields: Vec<Box<dyn ColumnVector>>,
+
+#[derive(Debug)]
+pub struct RecordBatch {
+    pub schema: Schema,
+    pub fields: Vec<Box<ColumnVector>>,
 }
 
 impl RecordBatch {
@@ -15,7 +20,8 @@ impl RecordBatch {
     }
 
     /** Access one column by index */
-    pub fn field(&self, i: usize) -> &Box<dyn ColumnVector> {
-        self.fields.get(i).unwrap()
+    pub fn field(&self, i: usize) -> Box<ColumnVector> {
+        let field = self.fields.get(i).unwrap().clone();
+        field
     }
 }
