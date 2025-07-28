@@ -1,9 +1,9 @@
-use arrow::datatypes::{Field, Schema as ArrowSchema};
+use arrow::datatypes::Schema as ArrowSchema;
 use std::{collections::BTreeMap, sync::Arc};
 
 use arrow::datatypes::Schema;
 
-use crate::datatypes::record_batch::RecordBatch;
+use crate::datatypes::{column_vector::ColumnVector, record_batch::RecordBatch};
 
 macro_rules! define_datasource_enum {
     (
@@ -27,11 +27,11 @@ macro_rules! define_datasource_enum {
 
 define_datasource_enum! {
     BTree({
-        data: BTreeMap<i32, Field>,
+        data: BTreeMap<i32, ColumnVector>,
         schema: Schema
     }),
     DynList({
-        data: Vec<Field>,
+        data: Vec<ColumnVector>,
         schema: Schema
     }),
 }
