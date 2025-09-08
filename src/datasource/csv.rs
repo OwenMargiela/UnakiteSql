@@ -81,14 +81,14 @@ impl Iterator for CsvIterator {
         let local_schema = schema_from_arrow_schema(self.schema.clone());
         match self.reader.next() {
             Some(batch) => {
-                let mut fields: Vec<Box<ColumnVector>> = vec![];
+                let mut fields: Vec<ColumnVector> = vec![];
 
                 let batches = batch.unwrap();
 
                 for col in batches.columns() {
-                    fields.push(Box::new(ColumnVector::ArrowVector(ArrowFieldVector {
+                    fields.push(ColumnVector::ArrowVector(ArrowFieldVector {
                         field: col.clone(),
-                    })));
+                    }));
                 }
 
                 return Some(RecordBatch {

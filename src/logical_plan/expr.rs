@@ -25,34 +25,47 @@ pub enum MathExpression {
 }
 
 #[derive(Debug)]
+pub enum NumericExpression {
+    Integer8Expr(LiteralInt8),
+    Integer16Expr(LiteralInt16),
+    Integer32Expr(LiteralInt32),
+    Integer64Expr(LiteralInt64),
+    UInteger8Expr(LiteralUInt8),
+    UInteger16Expr(LiteralUInt16),
+    UInteger32Expr(LiteralUInt32),
+    UInteger64Expr(LiteralUInt64),
+    FloatExpr(LiteralFloat),
+    DoubleExpr(LiteralDouble),
+}
+
+#[derive(Debug)]
 pub enum LiteralExpression {
-    StringExpr(Arc<LiteralString>),
-    Integer8Expr(Arc<LiteralInt8>),
-    Integer16Expr(Arc<LiteralInt16>),
-    Integer32Expr(Arc<LiteralInt32>),
-    Integer64Expr(Arc<LiteralInt64>),
-    UInt32Integer8Expr(Arc<LiteralUInt8>),
-    UInteger16Expr(Arc<LiteralUInt16>),
-    UInteger32Expr(Arc<LiteralUInt32>),
-    UInteger64Expr(Arc<LiteralUInt64>),
-    FloatExpr(Arc<LiteralFloat>),
-    DoubleExpr(Arc<LiteralDouble>),
+    StringExpr(LiteralString),
+    Numeric(NumericExpression),
+}
+
+impl NumericExpression {
+    pub fn to_field(&self, input: Arc<LogicalPlan>) -> Field {
+        match self {
+            NumericExpression::Integer8Expr(literal_int8) => literal_int8.to_field(input),
+            NumericExpression::Integer16Expr(literal_int16) => literal_int16.to_field(input),
+            NumericExpression::Integer32Expr(literal_int32) => literal_int32.to_field(input),
+            NumericExpression::Integer64Expr(literal_int64) => literal_int64.to_field(input),
+            NumericExpression::UInteger8Expr(literal_uint8) => literal_uint8.to_field(input),
+            NumericExpression::UInteger16Expr(literal_uint16) => literal_uint16.to_field(input),
+            NumericExpression::UInteger32Expr(literal_uint32) => literal_uint32.to_field(input),
+            NumericExpression::UInteger64Expr(literal_uint64) => literal_uint64.to_field(input),
+            NumericExpression::FloatExpr(literal_float) => literal_float.to_field(input),
+            NumericExpression::DoubleExpr(literal_double) => literal_double.to_field(input),
+        }
+    }
 }
 
 impl LiteralExpression {
     pub fn to_field(&self, input: Arc<LogicalPlan>) -> Field {
         match self {
             LiteralExpression::StringExpr(literal_string) => literal_string.to_field(input),
-            LiteralExpression::Integer8Expr(literal_int8) => literal_int8.to_field(input),
-            LiteralExpression::Integer16Expr(literal_int16) => literal_int16.to_field(input),
-            LiteralExpression::Integer32Expr(literal_int32) => literal_int32.to_field(input),
-            LiteralExpression::Integer64Expr(literal_int64) => literal_int64.to_field(input),
-            LiteralExpression::UInt32Integer8Expr(literal_uint8) => literal_uint8.to_field(input),
-            LiteralExpression::UInteger16Expr(literal_uint16) => literal_uint16.to_field(input),
-            LiteralExpression::UInteger32Expr(literal_uint32) => literal_uint32.to_field(input),
-            LiteralExpression::UInteger64Expr(literal_uint64) => literal_uint64.to_field(input),
-            LiteralExpression::FloatExpr(literal_float) => literal_float.to_field(input),
-            LiteralExpression::DoubleExpr(literal_double) => literal_double.to_field(input),
+            LiteralExpression::Numeric(numeric_expression) => numeric_expression.to_field(input),
         }
     }
 }

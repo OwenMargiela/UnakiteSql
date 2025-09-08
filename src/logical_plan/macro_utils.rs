@@ -3,11 +3,9 @@ macro_rules! impl_literal_helper {
         pub fn $func_name(value: &str) -> crate::logical_plan::expr::ExprRef {
             crate::logical_plan::expr::ExprRef {
                 state: crate::logical_plan::Arc::new(crate::logical_plan::expr::Expr::LiteralExpr(
-                    crate::logical_plan::expr::LiteralExpression::$variant(
-                        crate::logical_plan::Arc::new($struct {
-                            value: value.to_string(),
-                        }),
-                    ),
+                    crate::logical_plan::expr::LiteralExpression::$variant($struct {
+                        value: value.to_string(),
+                    }),
                 )),
             }
         }
@@ -17,8 +15,8 @@ macro_rules! impl_literal_helper {
         pub fn $func_name(value: $ty) -> crate::logical_plan::expr::ExprRef {
             crate::logical_plan::expr::ExprRef {
                 state: crate::logical_plan::Arc::new(crate::logical_plan::expr::Expr::LiteralExpr(
-                    crate::logical_plan::expr::LiteralExpression::$variant(
-                        crate::logical_plan::Arc::new($struct { value }),
+                    crate::logical_plan::expr::LiteralExpression::Numeric(
+                        crate::logical_plan::expr::NumericExpression::$variant($struct { value }),
                     ),
                 )),
             }
@@ -109,7 +107,7 @@ impl_non_string_literals!(
     /* Logical expression representing a literal long int value. */
     (LiteralInt64, i64, Int64, Integer64Expr, literal_i64),
     /* Logical expression representing a literal small uint value. */
-    (LiteralUInt8, u8, UInt8, UInt32Integer8Expr, literal_u8),
+    (LiteralUInt8, u8, UInt8, UInteger8Expr, literal_u8),
     /* Logical expression representing a literal short uint value. */
     (LiteralUInt16, u16, UInt16, UInteger16Expr, literal_u16),
     /* Logical expression representing a literal  uint value. */
@@ -302,13 +300,11 @@ macro_rules! impl_aggregate_expr {
     (AggregateCount, $op_name:expr) => {
         pub struct AggregateCount {
             _name: String,
-            expr:  crate::logical_plan::expr::ExprRef,
+            expr: crate::logical_plan::expr::ExprRef,
         }
 
         impl AggregateCount {
-            pub fn new(
-                expr:  crate::logical_plan::expr::ExprRef,
-            ) -> Self {
+            pub fn new(expr: crate::logical_plan::expr::ExprRef) -> Self {
                 Self {
                     _name: $op_name,
                     expr,

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, vec};
 
 use arrow::{
     array::{
@@ -59,7 +59,7 @@ pub struct ArrowVectorBuilder {
 }
 
 impl ArrowVectorBuilder {
-    pub fn new(datatype: DataType) -> Self {
+    pub fn new(datatype: &DataType) -> Self {
         let builder = match_and!(init_builder, datatype);
         let stager = Stager::new();
 
@@ -119,4 +119,88 @@ impl ArrowVectorBuilder {
 
         ColumnVector::ArrowVector(ArrowFieldVector { field: array_ref })
     }
+}
+
+
+
+pub enum TypeVector {
+    Boolean(Vec<bool>),
+    Int8(Vec<i8>),
+    Int16(Vec<i16>),
+    Int32(Vec<i32>),
+    Int64(Vec<i64>),
+    UInt8(Vec<u8>),
+    UInt16(Vec<u16>),
+    UInt32(Vec<u32>),
+    UInt64(Vec<u64>),
+    Float(Vec<f32>),
+    Double(Vec<f64>),
+    String(Vec<String>),
+}
+
+use std::any::Any;
+
+impl TypeVector {
+
+    pub fn as_any(&self) -> &dyn Any {
+        match self {
+            TypeVector::Boolean(v) => v,
+            TypeVector::Int8(v) => v,
+            TypeVector::Int16(v) => v,
+            TypeVector::Int32(v) => v,
+            TypeVector::Int64(v) => v,
+            TypeVector::UInt8(v) => v,
+            TypeVector::UInt16(v) => v,
+            TypeVector::UInt32(v) => v,
+            TypeVector::UInt64(v) => v,
+            TypeVector::Float(v) => v,
+            TypeVector::Double(v) => v,
+            TypeVector::String(v) => v,
+        }
+    }
+}
+
+
+// Helper to generate vectors
+#[macro_export]
+macro_rules! generate_match_arms {
+    ($builder:expr, $vector:expr, $( ($variant:ident, $arrow_type:ident) ),* $(,)? ) => {
+        match $vector {
+            $(
+                TypeVector::$variant(items) => {
+                    for (i, value) in items.iter().enumerate() {
+                        $builder.set(i, Some(ArrowValue::$arrow_type(*value)));
+                    }
+                }
+            )*
+            // Special case for String
+            TypeVector::String(items) => {
+                for (i, value) in items.iter().enumerate() {
+                    $builder.set(i, Some(ArrowValue::StringType(value.to_string())));
+                }
+            }
+        }
+    };
+}
+
+pub fn build_vector(data_type: DataType, vector: &TypeVector) -> ColumnVector {
+    let mut builder = ArrowVectorBuilder::new(&data_type);
+
+    generate_match_arms!(
+        builder,
+        vector,
+        (Boolean, BooleanType),
+        (Int8, Int8Type),
+        (Int16, Int16Type),
+        (Int32, Int32Type),
+        (Int64, Int64Type),
+        (UInt8, UInt8Type),
+        (UInt16, UInt16Type),
+        (UInt32, UInt32Type),
+        (UInt64, UInt64Type),
+        (Float, FloatType),
+        (Double, DoubleType),
+    );
+
+    builder.build()
 }

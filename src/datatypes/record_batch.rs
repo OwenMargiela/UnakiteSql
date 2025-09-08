@@ -1,13 +1,14 @@
+
+
 use crate::datatypes::{
     column_vector::{ColumnVector, ColumnVectorTrait},
     schema::Schema,
 };
 
-
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct RecordBatch {
     pub schema: Schema,
-    pub fields: Vec<Box<ColumnVector>>,
+    pub fields: Vec<ColumnVector>,
 }
 
 impl RecordBatch {
@@ -20,7 +21,7 @@ impl RecordBatch {
     }
 
     /** Access one column by index */
-    pub fn field(&self, i: usize) -> Box<ColumnVector> {
+    pub fn field(&self, i: usize) -> ColumnVector {
         let field = self.fields.get(i).unwrap().clone();
         field
     }

@@ -20,13 +20,13 @@ impl ArrowFieldVector {
 
     pub fn get_value(&self, i: usize) -> Option<ArrowValue> {
         if self.field.is_null(i) {
-            panic!("Null Field");
+            return None;
+        } else {
+            let field = self.field.clone();
+            let value = match_and!(self.field.data_type(), downcast_arry, field, i);
+
+            return Some(value);
         }
-
-        let field = self.field.clone();
-        let value = match_and!(self.field.data_type(), downcast_arry, field, i);
-
-        Some(value)
     }
 
     pub fn size(&self) -> usize {

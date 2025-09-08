@@ -5,9 +5,9 @@ use arrow::datatypes::DataType;
 
 #[derive(Clone, Debug)]
 pub struct LiteralValueVector {
-    arrow_type: DataType,
-    value: Option<ArrowValue>,
-    size: usize,
+    pub arrow_type: DataType,
+    pub value: Option<ArrowValue>,
+    pub size: usize,
 }
 
 impl LiteralValueVector {

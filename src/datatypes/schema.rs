@@ -66,6 +66,12 @@ pub struct Field {
 }
 
 impl Field {
+    pub fn new(string: &str, data_type: DataType) -> Self {
+        Field {
+            name: string.to_string(),
+            data_type,
+        }
+    }
     pub fn to_arrow(self) -> ArrowField {
         let field = ArrowField::new(self.name, self.data_type, true);
         field

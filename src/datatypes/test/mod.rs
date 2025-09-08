@@ -10,7 +10,7 @@ pub mod test {
     #[test]
     fn build_int64_vector() {
         let size = 10;
-        let mut b = ArrowVectorBuilder::new(DataType::Int64);
+        let mut b = ArrowVectorBuilder::new(&DataType::Int64);
         for i in 0..size {
             b.set(i, Some(ArrowValue::Int64Type(i as i64)));
         }
@@ -21,7 +21,7 @@ pub mod test {
         assert_eq!(size, v_size);
 
         for i in 0..v_size {
-            let v_value = v.get_value(i).unwrap();
+            let v_value = v.get_value(i);
 
             if let ArrowValue::Int64Type(int_value) = v_value {
                 assert_eq!(i as i64, int_value);

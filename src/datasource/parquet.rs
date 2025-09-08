@@ -90,14 +90,14 @@ impl Iterator for ParquetIterator {
 
         match reader.next() {
             Some(reader_batch) => {
-                let mut fields: Vec<Box<ColumnVector>> = vec![];
+                let mut fields: Vec<ColumnVector> = vec![];
 
                 let batches = reader_batch.unwrap();
 
                 for col in batches.columns() {
-                    fields.push(Box::new(ColumnVector::ArrowVector(ArrowFieldVector {
+                    fields.push(ColumnVector::ArrowVector(ArrowFieldVector {
                         field: col.clone(),
-                    })));
+                    }));
                 }
 
                 return Some(RecordBatch {

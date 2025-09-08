@@ -3,8 +3,8 @@ use std::sync::Arc;
 use crate::{datatypes::schema::Schema, logical_plan::LogicalPlan};
 
 pub struct Limit {
-    input: Arc<LogicalPlan>,
-    limit: usize,
+    pub input: Arc<LogicalPlan>,
+    pub limit: usize,
 }
 
 impl Limit {
