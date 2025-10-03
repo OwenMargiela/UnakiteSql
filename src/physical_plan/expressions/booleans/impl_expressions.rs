@@ -1,19 +1,29 @@
+use std::sync::Arc;
 
-use crate::{
-    datatypes::{concrete_type::ConcreteType, value::ArrowValue}, physical_plan::expressions::booleans::BooleanPair,
+use crate::datatypes::arrow_field_vector::ArrowFieldVector;
+use crate::physical_plan::expressions::booleans::BooleanPair;
 
-};
+use crate::physical_plan::expressions::booleans::ColumnVector;
+use arrow::array::AsArray;
+use arrow::compute::and;
+// use arrow::compute::kernels::cmp::*;
+use arrow::compute::or;
 
 pub struct AndPlan;
 
 impl BooleanPair for AndPlan {
-    fn evaluate_pair(
-        &self,
-        _l: Option<ArrowValue>,
-        _r: Option<ArrowValue>,
-        _arrow_type: arrow::datatypes::DataType,
-    ) -> bool {
-        _l.unwrap().into() && _r.unwrap().into()
+    fn evaluate_pair(&self, l: ColumnVector, r: ColumnVector) -> ColumnVector {
+        let vec = and(
+            &l.get_vector().field.as_boolean(),
+            &r.get_vector().field.as_boolean(),
+        )
+        .unwrap();
+
+        let coulumn_vec = ColumnVector::ArrowVector(ArrowFieldVector {
+            field: Arc::new(vec),
+        });
+
+        coulumn_vec
     }
 }
 
@@ -32,13 +42,18 @@ impl std::fmt::Debug for AndPlan {
 pub struct OrPlan;
 
 impl BooleanPair for OrPlan {
-    fn evaluate_pair(
-        &self,
-        _l: Option<ArrowValue>,
-        _r: Option<ArrowValue>,
-        _arrow_type: arrow::datatypes::DataType,
-    ) -> bool {
-        _l.unwrap().into() || _r.unwrap().into()
+    fn evaluate_pair(&self, l: ColumnVector, r: ColumnVector) -> ColumnVector {
+        let vec = or(
+            &l.get_vector().field.as_boolean(),
+            &r.get_vector().field.as_boolean(),
+        )
+        .unwrap();
+
+        let coulumn_vec = ColumnVector::ArrowVector(ArrowFieldVector {
+            field: Arc::new(vec),
+        });
+
+        coulumn_vec
     }
 }
 
@@ -55,43 +70,23 @@ impl std::fmt::Debug for OrPlan {
 }
 
 macro_rules! impl_binary_infix_op {
-    ($(($struct:ident, $infix:tt)),* $(,)?) => {
+    ($(($struct:ident, $infix:tt, $cmp_function:ident)),* $(,)?) => {
         $(
             pub struct $struct ;
 
             impl BooleanPair for $struct {
+
                 fn evaluate_pair(
                     &self,
-                    _l: Option<ArrowValue>,
-                    _r: Option<ArrowValue>,
-                    _arrow_type: arrow::datatypes::DataType,
-                ) -> bool {
-                    let (l, r) = match (_l, _r) {
-                        (Some(l), Some(r)) => (l, r),
-                        _ => panic!("Both operands must be Some"),
-                    };
+                    l: ColumnVector,
+                    r: ColumnVector,
 
-                    if l.get_conc_type() == r.get_conc_type() && r.get_conc_type() == _arrow_type {
-                        match _arrow_type {
-                            arrow::datatypes::DataType::Int8 => i8::from(l) $infix i8::from(r),
-                            arrow::datatypes::DataType::Int16 => i16::from(l) $infix i16::from(r),
-                            arrow::datatypes::DataType::Int32 => i32::from(l) $infix i32::from(r),
-                            arrow::datatypes::DataType::Int64 => i64::from(l) $infix i64::from(r),
-                            arrow::datatypes::DataType::UInt8 => u8::from(l) $infix u8::from(r),
-                            arrow::datatypes::DataType::UInt16 => u16::from(l) $infix u16::from(r),
-                            arrow::datatypes::DataType::UInt32 => u32::from(l) $infix u32::from(r),
-                            arrow::datatypes::DataType::UInt64 => u64::from(l) $infix u64::from(r),
-                            arrow::datatypes::DataType::Float32 => f32::from(l) $infix f32::from(r),
-                            arrow::datatypes::DataType::Float64 => f64::from(l) $infix f64::from(r),
-
-                            arrow::datatypes::DataType::Utf8 => String::from(l) $infix String::from(r),
-                            _ => panic!("Invalid Arrow datatype for this operation"),
-                        }
-                    } else {
-                        panic!("Invalid type combination or mismatched Arrow types")
-                    }
+                ) -> ColumnVector {
+                    let coulumn_vec = ColumnVector::ArrowVector(ArrowFieldVector {
+                        field: Arc::new(arrow::compute::kernels::cmp::$cmp_function(&l.get_vector().field, &r.get_vector().field).unwrap())
+                    });
+                    coulumn_vec
                 }
-
 
             }
 
@@ -117,12 +112,12 @@ macro_rules! impl_binary_infix_op {
 // Implements binary infix operations
 
 impl_binary_infix_op!(
-    (EqPlan, ==),
-    (NeqPlan, !=),
+    (EqPlan, ==,eq),
+    (NeqPlan, !=,neq),
 
-    (LtPlan, <),
-    (LteqPlan, <=),
-    (GtPlan, >),
-    (GteqPlan, >=),
+    (LtPlan, <,lt),
+    (LteqPlan, <=,lt_eq),
+    (GtPlan, >,gt),
+    (GteqPlan, >=,gt_eq),
 
 );

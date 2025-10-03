@@ -1,13 +1,12 @@
 use core::fmt;
+use std::sync::Arc;
 
 use arrow::datatypes::DataType;
 
 use crate::{
     datatypes::{
-        arrow_vector_builder::ArrowVectorBuilder,
-        column_vector::{ColumnVector, ColumnVectorTrait},
+        arrow_field_vector::ArrowFieldVector, column_vector::ColumnVector,
         record_batch::RecordBatch,
-        value::ArrowValue,
     },
     physical_plan::expressions::{Expression, column_expressions::ColumnExpression},
 };
@@ -24,40 +23,31 @@ impl fmt::Display for CastExpression {
 }
 
 macro_rules! builded_cast_array {
-    ( $builder:expr, $data_type: ident, $value:expr, $(($variant:ident, $rust_type:ty)),* $(,)?  ) => {
+    (  $data_type: ident, $value:expr, $(($variant:ident, $rust_type:ty)),* $(,)?  ) => {
 
         match $data_type {
 
             $(
                 DataType::$variant => {
-                    use crate::datatypes::cast_accross::CastAcross;
-                    for i in 0..$value.size() {
-                    let vv = $value.get_value_inner(i);
-                    if let Some(vv) = vv {
 
-                        let cast_value: ArrowValue = vv.cast_to(DataType::$variant);
+                    let vec = &$value.get_vector().field;
+                    let casted = arrow::compute::kernels::cast(vec, &$data_type).unwrap();
 
-                        $builder.set(i, Some(cast_value));
-                    } else {
-                        $builder.set(i, None);
-                    }
-                }
+                    return ColumnVector::ArrowVector(ArrowFieldVector {
+                                field: Arc::new(casted)
+                    });
+
 
                 }
             )*,
-              DataType::Utf8 => {
-                    for i in 0..$value.size() {
-                    use crate::datatypes::cast_accross::CastAcross;
-                    let vv = $value.get_value_inner(i);
-                    if let Some(vv) = vv {
+            DataType::Utf8 => {
 
-                        let cast_value: ArrowValue = vv.cast_to(DataType::Utf8);
+                    let vec = &$value.get_vector().field;
+                    let casted = arrow::compute::kernels::cast(vec, &DataType::Utf8).unwrap();
 
-                        $builder.set(i, Some(cast_value));
-                    } else {
-                        $builder.set(i, None);
-                    }
-                }
+                    return ColumnVector::ArrowVector(ArrowFieldVector {
+                        field: Arc::new(casted)
+                    });
 
                 }
 
@@ -80,10 +70,7 @@ impl CastExpression {
 
         let data_type = self.data_type.clone();
 
-        let mut builder = ArrowVectorBuilder::new(&data_type);
-
         builded_cast_array!(
-            builder,
             data_type,
             value,
             (Int8, i8),
@@ -96,8 +83,6 @@ impl CastExpression {
             (UInt64, u64),
             (Float32, f32),
             (Float64, f64),
-        );
-
-        builder.build()
+        )
     }
 }

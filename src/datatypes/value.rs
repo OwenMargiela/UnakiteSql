@@ -76,7 +76,7 @@ impl_from!(
 
 #[cfg(test)]
 pub mod test {
-    use crate::datatypes::{cast_accross::CastAcross, value::ArrowValue};
+    use crate::datatypes:: value::ArrowValue;
 
     #[test]
     fn test() {
@@ -91,7 +91,7 @@ pub mod test {
         let int: ArrowValue = 12u8.into();
         let integer: ArrowValue = ArrowValue::from(12u8);
 
-        if let ArrowValue::UInt8Type(value) = int {
+        if let ArrowValue::UInt8Type(_) = int {
             println!("{:?}", int)
         } else {
             panic!("Incorrect Conversion")
@@ -112,16 +112,4 @@ pub mod test {
         println!("{:?}", b);
     }
 
-    #[test]
-    fn test_across() {
-        let b: ArrowValue = true.into();
-        let value = b.cast_to(arrow::datatypes::DataType::Utf8);
-
-        println!("{:?}", value);
-
-        let value = value.cast_to(arrow::datatypes::DataType::Int16);
-
-        println!("{:?}", value);
-
-    }
 }

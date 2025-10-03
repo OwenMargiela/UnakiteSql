@@ -16,7 +16,24 @@ use crate::{
 };
 use std::{fmt::Debug, sync::Arc};
 
+
+
+// Row oriented bs use arrow compute for simd physical operations unless you are willing to do simd from scratch..... 
+
+
+
 /// Physical representation of an expression in the query plan
+/// 
+/// 
+/*
+
+    pub struct PhysicalExpression {
+        expression: Box<dyn Expression>
+    }
+
+    physicalExpression.evaluate
+
+*/
 #[derive(Debug, Clone)]
 pub enum Expression {
     Literal(LiteralExpression),
@@ -26,6 +43,9 @@ pub enum Expression {
     Cast,
     Unary,
 }
+
+
+
 
 #[derive(Debug, Clone)]
 pub enum LiteralExpression {

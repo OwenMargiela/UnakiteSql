@@ -27,6 +27,22 @@ impl ColumnVector {
 
         panic!("Unwarp on a null value")
     }
+
+    pub fn get_vector(&self) -> &ArrowFieldVector {
+        if let ColumnVector::ArrowVector(vec) = self {
+            return vec;
+        } else {
+            panic!("Fall getting Field Vector")
+        }
+    }
+
+     pub fn get_mut_vector(self) -> ArrowFieldVector {
+        if let ColumnVector::ArrowVector(vec) = self {
+            return vec;
+        } else {
+            panic!("Fall getting Field Vector")
+        }
+    }
 }
 impl ColumnVectorTrait for ColumnVector {
     fn get_type(&self) -> DataType {

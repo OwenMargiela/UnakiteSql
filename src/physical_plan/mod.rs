@@ -1,19 +1,33 @@
 pub mod expressions;
 pub mod test;
-use crate::{datasource::Iterators, datatypes::schema::Schema};
 
+pub mod hash_aggregate_exec;
+pub mod projection_exec;
+pub mod scan_exec;
+pub mod selection_exec;
+
+use std::sync::Arc;
+
+use crate::{datasource::Iterators, datatypes::{record_batch::RecordBatch, schema::Schema}};
+
+pub trait PhysPlanTrait {
+    fn schema(&self) -> Schema;
+    fn execute(&self) -> impl Iterator< Item = RecordBatch>;
+    fn children(&self) -> Vec<Arc<PhysicaPlan>>;
+
+ 
+   
+}
 pub enum PhysicaPlan {}
 
 impl PhysicaPlan {
-    pub fn children(&self) -> Vec<PhysicaPlan> {
+    pub fn schema(&self) -> Schema {
         unimplemented!()
     }
-
     pub fn execute(&self) -> Iterators {
         unimplemented!()
     }
-
-    pub fn schema(&self) -> Schema {
+    pub fn children(&self) -> Vec<Arc<PhysicaPlan>> {
         unimplemented!()
     }
 

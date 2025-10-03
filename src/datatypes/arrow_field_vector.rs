@@ -3,10 +3,15 @@ use crate::{datatypes::value::ArrowValue, downcast_arry, match_and};
 use arrow::{
     array::{
         Array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int8Array, Int16Array,
-        Int32Array, Int64Array, StringArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
+        Int32Array, Int64Array, PrimitiveArray, StringArray, UInt8Array, UInt16Array, UInt32Array,
+        UInt64Array,
     },
     datatypes::DataType,
 };
+
+pub struct ArrowPVector<T: arrow::array::ArrowPrimitiveType> {
+    pub field: PrimitiveArray<T>,
+}
 
 /** Wrapper around Arrow ArrayRef */
 #[derive(Clone, Debug)]

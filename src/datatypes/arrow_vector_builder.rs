@@ -78,6 +78,24 @@ impl ArrowVectorBuilder {
         }
     }
 
+    pub fn set_all(&mut self, values: &mut Vec<Option<ArrowValue>>) {
+        if values.is_empty() {
+            return;
+        }
+
+        for (i, value) in values.iter_mut().enumerate() {
+            if let Some(inner) = value.take() {
+                if inner.get_conc_type() == self.builder.get_conc_type() {
+                    self.stager.set(i, Some(inner));
+                } else {
+                    self.stager.set(i, None);
+                }
+            } else {
+                self.stager.set(i, None);
+            }
+        }
+    }
+
     fn append(&mut self, value: Option<ArrowValue>) {
         append_dispatch!(
             &mut self.builder,
@@ -121,8 +139,6 @@ impl ArrowVectorBuilder {
     }
 }
 
-
-
 pub enum TypeVector {
     Boolean(Vec<bool>),
     Int8(Vec<i8>),
@@ -141,7 +157,6 @@ pub enum TypeVector {
 use std::any::Any;
 
 impl TypeVector {
-
     pub fn as_any(&self) -> &dyn Any {
         match self {
             TypeVector::Boolean(v) => v,
@@ -159,7 +174,6 @@ impl TypeVector {
         }
     }
 }
-
 
 // Helper to generate vectors
 #[macro_export]

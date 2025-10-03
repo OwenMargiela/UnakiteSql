@@ -1,7 +1,16 @@
 use std::fmt::{self, Debug, Display};
 
+use arrow::{
+    array::{ArrayRef, PrimitiveArray},
+    compute,
+    datatypes::{
+        DataType, Float32Type, Float64Type, Int8Type, Int16Type, Int32Type, Int64Type, UInt8Type,
+        UInt16Type, UInt32Type, UInt64Type,
+    },
+};
+
 use crate::{
-    datatypes::value::ArrowValue,
+    datatypes::{column_vector::ColumnVector, value::ArrowValue},
     physical_plan::expressions::{Expression, column_expressions::ColumnExpression},
 };
 
@@ -11,37 +20,80 @@ pub trait AggregateExpression: Display + Debug {
 }
 
 pub trait Accumulator {
-    fn accumulate(&mut self, value: Option<ArrowValue>);
-    fn final_value(&self) -> Option<ArrowValue>;
+    fn update(&mut self, values: &ColumnVector) -> anyhow::Result<()>;
+    fn final_value(&self) -> ArrowValue;
 }
 
-macro_rules! impl_aggregator {
-    ($( ($aggregate_name:ident,$accumulator_name:ident,$string_expr:expr,$infix:tt)),* $(,)? )=> {
+#[macro_export]
+macro_rules! match_primitive_op {
+    ($array:expr, $op:ident,
+        $( $datatype:pat => $variant:ident => $ty:ty ),* $(,)?
+    ) => {
+        match $array.data_type() {
+            $(
+                $datatype => {
+                    let arr = $array
+                        .as_any()
+                        .downcast_ref::<PrimitiveArray<$ty>>()
+                        .ok_or_else(|| anyhow::anyhow!(concat!("Failed to downcast to ", stringify!($ty))))?;
+                    Ok(ArrowValue::$variant(compute::$op::<$ty>(arr).unwrap_or_default()))
+                }
+            )*
+            other => Err(anyhow::anyhow!("Unsupported data type: {:?}", other)),
+        }
+    };
+}
 
+/// Creates a primitive aggregator function like min_primitive, max_primitive, etc.
+macro_rules! define_primitive_agg_fn {
+    ($func_name:ident, $kernel_fn:ident) => {
+        fn $func_name(array: &ArrayRef) -> anyhow::Result<ArrowValue> {
+            match_primitive_op!(array, $kernel_fn,
+                DataType::Int8 => Int8Type => Int8Type,
+                DataType::Int16 => Int16Type => Int16Type,
+                DataType::Int32 => Int32Type => Int32Type,
+                DataType::Int64 => Int64Type => Int64Type,
+                DataType::UInt8 => UInt8Type => UInt8Type,
+                DataType::UInt16 => UInt16Type => UInt16Type,
+                DataType::UInt32 => UInt32Type => UInt32Type,
+                DataType::UInt64 => UInt64Type => UInt64Type,
+                DataType::Float32 => FloatType => Float32Type,
+                DataType::Float64 => DoubleType => Float64Type,
+            )
+        }
+    };
+}
+
+define_primitive_agg_fn!(min_primitive, min);
+define_primitive_agg_fn!(max_primitive, max);
+define_primitive_agg_fn!(sum_primitive, sum);
+
+macro_rules! impl_aggregator {
+    ($( ($aggregate_name:ident, $accumulator_name:ident, $op_func:ident) ),* $(,)?) => {
         $(
             pub struct $aggregate_name {
                 pub expr: Expression,
             }
 
-            impl fmt::Display for $aggregate_name {
+            impl Display for $aggregate_name {
                 fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    write!(f, "{}({:?}{}",stringify!($string_expr), self.expr, ")")
+                    write!(f, "{}({:?})", stringify!($aggregate_name), self.expr)
+                }
+            }
+
+            impl Debug for $aggregate_name {
+                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    write!(f, "{}({:?})", stringify!($aggregate_name), self.expr)
                 }
             }
 
             impl AggregateExpression for $aggregate_name {
                 fn create_accumulator(&self) -> Box<dyn Accumulator> {
-                    return Box::new($accumulator_name { value: None });
+                    Box::new($accumulator_name { value: None })
                 }
 
                 fn input_expression(&self) -> Expression {
                     self.expr.clone()
-                }
-            }
-
-            impl fmt::Debug for $aggregate_name {
-                fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    write!(f, "{}({:?}{}",stringify!($string_expr), self.expr, ")")
                 }
             }
 
@@ -50,131 +102,49 @@ macro_rules! impl_aggregator {
             }
 
             impl Accumulator for $accumulator_name {
-                fn accumulate(&mut self, value: Option<ArrowValue>) {
+                fn update(&mut self, values: &ColumnVector) -> anyhow::Result<()> {
+                    let vec = values.get_vector();
+                    let value = $op_func(&vec.field)?;
 
-                if let Some(value) = value {
-                    if let Some(_) = &self.value {
-                        let bool_res: bool = match value {
-                        ArrowValue::Int8Type(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::Int16Type(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::Int32Type(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::Int64Type(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::UInt8Type(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::UInt16Type(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::UInt32Type(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::UInt64Type(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::FloatType(val) => val $infix self.value.clone().unwrap().into(),
-                        ArrowValue::DoubleType(val) => val $infix self.value.clone().unwrap().into(),
+                    self.value = Some(match &self.value {
+                    Some(current) => match value {
+                        ArrowValue::Int8Type(v) => ArrowValue::Int8Type(v + i8::from(current.clone())),
+                        ArrowValue::Int16Type(v) => ArrowValue::Int16Type(v + i16::from(current.clone())),
+                        ArrowValue::Int32Type(v) => ArrowValue::Int32Type(v + i32::from(current.clone())),
+                        ArrowValue::Int64Type(v) => ArrowValue::Int64Type(v + i64::from(current.clone())),
+                        ArrowValue::UInt8Type(v) => ArrowValue::UInt8Type(v + u8::from(current.clone())),
+                        ArrowValue::UInt16Type(v) => ArrowValue::UInt16Type(v + u16::from(current.clone())),
+                        ArrowValue::UInt32Type(v) => ArrowValue::UInt32Type(v + u32::from(current.clone())),
+                        ArrowValue::UInt64Type(v) => ArrowValue::UInt64Type(v + u64::from(current.clone())),
+                        ArrowValue::FloatType(v) => ArrowValue::FloatType(v + f32::from(current.clone())),
+                        ArrowValue::DoubleType(v) => ArrowValue::DoubleType(v + f64::from(current.clone())),
                         _ => panic!("MAX is not implemented for data type"),
-                    };
-
-                    if bool_res {
-                        self.value = Some(value)
-                    }
-
-                    } else {
-                        self.value = Some(value)
-                    }
+                        },
+                        None => value,
+                    });
+                Ok(())
                 }
 
+                fn final_value(&self) -> ArrowValue {
+                    self.value.clone().expect("Accumulator has no value")
                 }
-                fn final_value(&self) -> Option<ArrowValue> {
-                    self.value.clone()
-                }
-        }
+            }
 
         )*
-
-
     };
 }
 
 impl_aggregator!(
-    (MaxExpression,MaxAccumulator,Max, >),
-    (MinExpression,MinAccumulator,Min, <)
-
+    (MaxExpression, MaxAccumulator, max_primitive),
+    (MinExpression, MinAccumulator, min_primitive),
+    (SumExpression, SumAccumulator, sum_primitive)
 );
 
-pub struct SumExpression {
-    pub expr: Expression,
-}
-impl fmt::Display for SumExpression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SUM({:?}{}", self.expr, ")")
-    }
-}
-
-pub struct SumAccumulator {
-    value: Option<ArrowValue>,
-}
-
-impl AggregateExpression for SumExpression {
-    fn create_accumulator(&self) -> Box<dyn Accumulator> {
-        return Box::new(SumAccumulator { value: None });
-    }
-
-    fn input_expression(&self) -> Expression {
-        self.expr.clone()
-    }
-}
-
-macro_rules! accumulate_numeric {
-    ($self:expr, $current_value:expr, $value:expr, $(($variant:path, $type:ty)),*) => {
-        match $current_value {
-            $(
-                $variant(_) => {
-                    let cur_val: $type = $current_value.into();
-                    let incoming_val: $type = $value.into();
-                    $self.value = Some((cur_val + incoming_val).into());
-                }
-            )*
-            _ => panic!("SUM is not implemented for this data type"),
-        }
-    };
-}
-
-impl fmt::Debug for SumExpression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Sum({:?})", self.expr)
-    }
-}
-
-impl Accumulator for SumAccumulator {
-    fn accumulate(&mut self, value: Option<ArrowValue>) {
-        if let Some(value) = value {
-            if let Some(current_value) = self.value.clone() {
-                accumulate_numeric!(
-                    self,
-                    current_value,
-                    value,
-                    (ArrowValue::Int8Type, i8),
-                    (ArrowValue::Int16Type, i16),
-                    (ArrowValue::Int32Type, i32),
-                    (ArrowValue::Int64Type, i64),
-                    (ArrowValue::UInt8Type, u8),
-                    (ArrowValue::UInt16Type, u16),
-                    (ArrowValue::UInt32Type, u32),
-                    (ArrowValue::UInt64Type, u64),
-                    (ArrowValue::FloatType, f32),
-                    (ArrowValue::DoubleType, f64)
-                );
-            } else {
-                self.value = Some(value)
-            }
-        }
-    }
-    fn final_value(&self) -> Option<ArrowValue> {
-        self.value.clone()
-    }
-}
-
-// Helprer
+// Helper
 pub fn sum_expression() -> SumExpression {
-    let a = SumExpression {
+    SumExpression {
         expr: Expression::Column(ColumnExpression { i: 0 }),
-    };
-
-    a
+    }
 }
 
 pub fn min_expression() -> MinExpression {

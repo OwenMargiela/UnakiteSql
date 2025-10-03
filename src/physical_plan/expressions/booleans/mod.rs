@@ -5,14 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use arrow::datatypes::DataType;
-
 use crate::{
     datatypes::{
-        arrow_vector_builder::ArrowVectorBuilder,
         column_vector::{ColumnVector, ColumnVectorTrait},
         record_batch::RecordBatch,
-        value::ArrowValue,
     },
     physical_plan::expressions::{
         Expression,
@@ -52,20 +48,8 @@ impl BooleanExpression {
 
     pub fn compare(&self, l: ColumnVector, r: ColumnVector) -> ColumnVector {
         let expr = { self.inner.clone() };
-
-        let mut b = ArrowVectorBuilder::new(&DataType::Boolean);
-        for i in 0..l.size() {
-            // println!("got {:?}", l.get_value(i));
-            // println!("got {:?}", r.get_value(i));
-            // println!("set {}",i);
-
-            let value = expr.evaluate_pair(l.get_value_inner(i), r.get_value_inner(i), l.get_type());
-
-            // I should make My like a lot easier and implement make some into and from functions
-            b.set(i, Some(ArrowValue::BooleanType(value)));
-        }
-
-        b.build()
+        let c: ColumnVector = expr.evaluate_pair(l, r);
+        c
     }
 
     pub fn get_l(&self) -> Arc<Expression> {
@@ -77,12 +61,7 @@ impl BooleanExpression {
 }
 
 pub trait BooleanPair: Debug + Display {
-    fn evaluate_pair(
-        &self,
-        _l: Option<ArrowValue>,
-        _r: Option<ArrowValue>,
-        _arrow_type: DataType,
-    ) -> bool;
+    fn evaluate_pair(&self, l: ColumnVector, r: ColumnVector) -> ColumnVector;
 }
 
 // Helpers

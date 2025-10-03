@@ -5,7 +5,7 @@ use crate::datatypes::{
     schema::Schema,
 };
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,)]
 pub struct RecordBatch {
     pub schema: Schema,
     pub fields: Vec<ColumnVector>,
